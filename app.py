@@ -1,134 +1,140 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
-import plotly.express as px
+from streamlit_calendar import calendar
 
 # 1. APP CONFIGURATION
-st.set_page_config(page_title="Life OS", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="My Personal CRM", layout="wide")
 
-# 2. STATE MANAGEMENT (Simulating Database for Testing)
-if "user_setup" not in st.session_state:
-    st.session_state.user_setup = False
-if "needs_review" not in st.session_state:
-    st.session_state.needs_review = False
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
-if "win_rate" not in st.session_state:
-    st.session_state.win_rate = 0
+# 2. SESSION STATE MANAGEMENT
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "setup_complete" not in st.session_state:
+    st.session_state.setup_complete = False
+if "theme_color" not in st.session_state:
+    st.session_state.theme_color = "#1E90FF" # Default Blue
+if "user_tasks" not in st.session_state:
+    st.session_state.user_tasks = []
 
-# 3. PHASE 1: THE ONBOARDING QUESTIONNAIRE
-if not st.session_state.user_setup:
-    st.title("Welcome to your Life OS. 🚀")
-    st.markdown("Let's build your perfect daily planner. Answer a few questions to set up your workflow.")
+# --- DYNAMIC THEME INJECTION ---
+# This applies the user's chosen color to buttons and highlights
+st.markdown(f"""
+    <style>
+    div.stButton > button:first-child {{ background-color: {st.session_state.theme_color}; color: white; border: none; }}
+    </style>
+""", unsafe_allow_html=True)
+
+# --- PAGE 1: THE LOGIN SCREEN ---
+if not st.session_state.logged_in:
+    st.title("Welcome to your Personal CRM")
+    st.markdown("Manage your life, business, and daily habits in one place.")
     
-    with st.form("onboarding_form"):
-        st.subheader("1. What is your primary focus this week?")
-        focus = st.selectbox("Select Focus", ["Scaling Operations", "Business Development", "Personal Health & Routine", "All of the above"])
-        
-        st.subheader("2. Select your core daily habits:")
-        habit_water = st.checkbox("Drink 1 Gallon of Water", value=True)
-        habit_cardio = st.checkbox("Fasted Cardio")
-        habit_reading = st.checkbox("Industry Reading (e.g., F1 Aero, Business Tech)")
-        habit_bella = st.checkbox("Walk Bella")
-        
-        st.subheader("3. What are your non-negotiable tasks for today?")
-        task1 = st.text_input("Task 1 (e.g., The Ohio Gym staff review, StretchLab marketing)")
-        task2 = st.text_input("Task 2")
-        
-        submit_setup = st.form_submit_button("Build My Dashboard", type="primary", use_container_width=True)
-        
-        if submit_setup:
-            # Build the dynamic task list based on answers
-            if habit_water: st.session_state.tasks.append({"Task": "Drink 1 Gallon of Water", "Status": "Pending", "Urgent": False})
-            if habit_cardio: st.session_state.tasks.append({"Task": "Fasted Cardio", "Status": "Pending", "Urgent": False})
-            if habit_reading: st.session_state.tasks.append({"Task": "Industry Reading", "Status": "Pending", "Urgent": False})
-            if habit_bella: st.session_state.tasks.append({"Task": "Walk Bella", "Status": "Pending", "Urgent": False})
-            if task1: st.session_state.tasks.append({"Task": task1, "Status": "Pending", "Urgent": True})
-            if task2: st.session_state.tasks.append({"Task": task2, "Status": "Pending", "Urgent": True})
-            
-            st.session_state.user_setup = True
-            st.balloons()
-            st.rerun()
-    st.stop()
-
-# 4. PHASE 2: FORCED WEEKLY REVIEW
-if st.session_state.needs_review:
-    st.title("🛑 Weekly Review Required")
-    st.markdown("Before you attack the new week, you must review the tape.")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Your Win Rate")
-        completed = st.session_state.win_rate
-        missed = 100 - completed if completed > 0 else 100
-        fig = px.pie(
-            values=[completed, missed], 
-            names=["Crushed It", "Missed"],
-            hole=0.7,
-            color_discrete_sequence=["#00CC96", "#EF553B"]
-        )
-        fig.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0))
-        st.plotly_chart(fig, use_container_width=True)
-        
+    st.divider()
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.subheader("Reflection Protocol")
-        st.text_area("Wins: What went well this week?", placeholder="e.g., Booked 3 new intro sessions...")
-        st.text_area("Adjustments: Where did we lose?", placeholder="e.g., Missed follow-ups on Thursday...")
-        
-        if st.button("Lock It In & Start New Week", type="primary", use_container_width=True):
-            st.session_state.needs_review = False
-            st.session_state.win_rate = 0 
-            st.snow()
+        # Placeholder for actual Google OAuth
+        if st.button("🔵 Continue with Google", use_container_width=True):
+            st.session_state.logged_in = True
             st.rerun()
     st.stop()
 
-# 5. PHASE 3: THE MAIN COMMAND CENTER
-st.title("Command Center")
-st.caption(f"{date.today().strftime('%A, %B %d, %Y')}")
-
-colA, colB, colC = st.columns(3)
-with colA:
-    if st.button("➕ Add Quick Task"):
-        st.session_state.tasks.append({"Task": "New Action Item", "Status": "Pending", "Urgent": False})
-        st.rerun()
-with colB:
-    if st.button("🔄 Trigger Weekly Review"):
-        st.session_state.win_rate = 85
-        st.session_state.needs_review = True
-        st.rerun()
-
-st.divider()
-
-st.subheader("Today's Playbook")
-all_done = True
-for idx, item in enumerate(st.session_state.tasks):
-    if item["Status"] == "Pending":
-        all_done = False
-        icon = "❗" if item["Urgent"] else "◻️"
+# --- PAGE 2: THE ONBOARDING QUESTIONNAIRE ---
+if st.session_state.logged_in and not st.session_state.setup_complete:
+    st.title("Let's build your system.")
+    st.markdown("Select what you want to track. You can always add more later.")
+    
+    with st.form("setup_form"):
+        # 1. App Aesthetics
+        st.subheader("🎨 Choose Your App Accent Color")
+        st.session_state.theme_color = st.color_picker("Pick a color", "#1E90FF")
         
-        c1, c2 = st.columns([4, 1])
-        with c1:
-            st.markdown(f"**{icon} {item['Task']}**")
-        with c2:
-            if st.button("Done", key=f"done_{idx}"):
-                st.session_state.tasks[idx]["Status"] = "Completed"
-                st.toast("Goal crushed! 🎯", icon="🔥")
-                st.rerun()
-    else:
-        st.success(f"✅ ~{item['Task']}~")
+        # 2. Lifestyle Dropdowns
+        st.subheader("🏋️ Fitness & Health")
+        health_goals = st.multiselect("Select tracking modules:", 
+            ["Daily Water (1 Gal)", "Fasted Cardio", "Lifting Protocol", "Sleep Tracking", "Meal Prep"]
+        )
+        
+        st.subheader("💼 Work & Business CRM")
+        work_goals = st.multiselect("Select tracking modules:", 
+            ["Lead Generation", "Client Follow-ups", "Admin Tasks", "Deep Work Blocks"]
+        )
+        
+        st.subheader("📚 Learning & Growth")
+        learn_goals = st.multiselect("Select tracking modules:", 
+            ["Read 10 Pages", "Study/Coursework", "Skill Practice", "Journaling"]
+        )
+        
+        st.subheader("🏡 Life & Household")
+        life_goals = st.multiselect("Select tracking modules:", 
+            ["Chores & Cleaning", "Pet Care", "Budgeting", "Groceries"]
+        )
+        
+        submit = st.form_submit_button("Generate My Dashboard", use_container_width=True)
+        
+        if submit:
+            # Consolidate all selections into the task database
+            all_selections = health_goals + work_goals + learn_goals + life_goals
+            for item in all_selections:
+                st.session_state.user_tasks.append({"Task": item, "Status": "Pending"})
+            
+            st.session_state.setup_complete = True
+            st.rerun()
+    st.stop()
 
-# 6. PHASE 4: END OF DAY WRAP UP
-st.divider()
-with st.expander("🌙 End of Day Wrap-Up"):
-    if all_done and len(st.session_state.tasks) > 0:
-        st.success("You cleared the board today. Rest up.")
-    else:
-        pending_count = sum(1 for t in st.session_state.tasks if t["Status"] == "Pending")
-        st.warning(f"You have {pending_count} pending tasks left.")
-        colX, colY = st.columns(2)
-        with colX:
-            if st.button("Roll Over to Tomorrow"):
-                st.toast("Tasks moved. Clock out.", icon="🌙")
-        with colY:
-            if st.button("Hustle & Finish Now", type="primary"):
-                st.toast("Let's get it done.", icon="💪")
+# --- PAGE 3: THE MAIN CRM & DASHBOARD ---
+# Sidebar Navigation
+st.sidebar.title("📱 My CRM")
+page = st.sidebar.radio("Navigate:", ["🏠 Daily Board", "📅 Calendar Scheduler", "⚙️ Settings"])
+
+if page == "🏠 Daily Board":
+    st.title("Daily Action Board")
+    st.caption(f"{date.today().strftime('%A, %B %d, %Y')}")
+    
+    st.subheader("Your Custom Targets")
+    for idx, item in enumerate(st.session_state.user_tasks):
+        if item["Status"] == "Pending":
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.write(f"◻️ {item['Task']}")
+            with col2:
+                if st.button("Done", key=f"btn_{idx}"):
+                    st.session_state.user_tasks[idx]["Status"] = "Completed"
+                    st.rerun()
+        else:
+            st.success(f"✅ ~{item['Task']}~")
+
+elif page == "📅 Calendar Scheduler":
+    st.title("Master Scheduler")
+    st.markdown("Your 24-hour, weekly, and monthly view. *(Google Calendar Sync coming soon)*")
+    
+    # Configure the Calendar View
+    calendar_options = {
+        "headerToolbar": {
+            "left": "today prev,next",
+            "center": "title",
+            "right": "dayGridMonth,timeGridWeek,timeGridDay", # Month, Week, 24-Hour Day views
+        },
+        "initialView": "timeGridWeek", # Defaults to the weekly schedule
+        "slotMinTime": "00:00:00", # Shows full 24 hours
+        "slotMaxTime": "24:00:00",
+    }
+    
+    # Example Events
+    events = [
+        {"title": "Deep Work Block", "start": f"{date.today()}T09:00:00", "end": f"{date.today()}T11:00:00", "color": st.session_state.theme_color},
+        {"title": "Client Follow-ups", "start": f"{date.today()}T13:00:00", "end": f"{date.today()}T14:00:00", "color": "#FF4B4B"}
+    ]
+    
+    calendar(events=events, options=calendar_options)
+
+elif page == "⚙️ Settings":
+    st.title("System Settings")
+    st.write("Update your theme or reset your account.")
+    new_color = st.color_picker("Change Accent Color", st.session_state.theme_color)
+    if st.button("Save Color"):
+        st.session_state.theme_color = new_color
+        st.rerun()
+    
+    if st.button("Log Out & Reset App"):
+        st.session_state.clear()
+        st.rerun()
