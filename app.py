@@ -1,8 +1,9 @@
 import streamlit as st
 from datetime import datetime, date, time, timedelta
+import re
 from streamlit_calendar import calendar
 
-st.set_page_config(page_title="Life OS Premium", layout="wide")
+st.set_page_config(page_title="Universal Life OS", layout="wide")
 
 # --- 1. LOCAL MEMORY & DATABASE ---
 if "users" not in st.session_state:
@@ -15,7 +16,7 @@ def init_user_data(username, password):
         st.session_state.users[username] = {
             "password": password,
             "setup_complete": False,
-            "wake_up": time(5, 30), # Default, updated in setup
+            "wake_up": time(6, 0),
             "events": [],
             "tasks": [],
             "goals": []
@@ -24,7 +25,7 @@ def init_user_data(username, password):
 # --- 2. AUTHENTICATION GATEWAY ---
 if st.session_state.current_user is None:
     st.title("Life OS")
-    st.markdown("Log in or create an account to access your command center.")
+    st.markdown("Log in or create an account to access your universal command center.")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -67,75 +68,103 @@ if st.sidebar.button("Log Out"):
     st.session_state.current_user = None
     st.rerun()
 
-# --- 4. THE ONBOARDING QUESTIONNAIRE ---
+# --- 4. THE UNIVERSAL ONBOARDING QUESTIONNAIRE ---
 if not user_data["setup_complete"]:
-    st.title("Let's build your operating system. 🚀")
-    st.markdown("Answer a few questions so we can prepopulate your calendar and queue up your macro goals.")
+    st.title("Build Your Operating System. 🚀")
+    st.markdown("Select your habits and targets, or create your own.")
     
     with st.form("setup_questionnaire"):
-        st.subheader("1. Daily Anchors")
-        wake_time = st.time_input("What time do you wake up?", value=time(5, 0))
+        st.subheader("1. Daily Anchor")
+        wake_time = st.time_input("What time do you usually wake up?", value=time(6, 0))
         
-        st.subheader("2. Professional Targets (Queues Goals)")
-        biz_goals = st.multiselect("Select your core business objectives:", [
-            "StretchLab Avon: Hit 200+ Members",
-            "Gym Management: Staff & Protocol Updates",
-            "Tech: Build AI API Integrations",
-            "Sales: 50 Weekly Cold Outreaches"
+        st.subheader("2. Professional KPIs & Macro Goals")
+        biz_goals = st.multiselect("Select your core objectives:", [
+            # Sales & Growth
+            "Sales: Close 5 New Deals Weekly", "Growth: Generate 20 Qualified Leads", "Finance: Increase Revenue by 15%", "Networking: Send 10 Cold Connections",
+            # Ops & Management
+            "Ops: Achieve 90% Task Completion", "Admin: Zero Inbox Daily", "Management: Weekly Team 1-on-1s", "Finance: Review Weekly Cash Flow",
+            # Freelance, Creative & Tech
+            "Content: Publish 3 Pieces Weekly", "Freelance: Secure 2 New Client Retainers", "Productivity: 4 Hours of Deep Work", 
+            "Tech: Commit Code Daily", "Tech: 1 Hour of Technical Upskilling", "Tech: Squash 5 Bugs Weekly",
+            # Academic / Learning
+            "Study: 3 Hours of Focused Study", "Academic: Read 2 Research Papers", "Academic: Attend All Lectures"
         ])
         
-        st.subheader("3. Personal & Fitness Routines (Pre-loads Calendar)")
+        # The Custom Goal Engine
+        custom_goal = st.text_input("➕ Add a Custom Goal (e.g., 'Book 10 Podcast Interviews')")
+        
+        st.subheader("3. Personal & Fitness Routines")
         routines = st.multiselect("Select daily routines to auto-schedule:", [
-            "Fasted Cardio (Morning)",
-            "Heavy Lifting / Bodybuilding Split",
-            "Walk Bella",
-            "Plant Care / Propagation check",
-            "Read Tech/F1 Regulations"
+            # Fitness
+            "Strength Training / Gym (45 mins)", "Zone 2 Cardio / Running (30 mins)", "HIIT Workout (20 mins)", 
+            "Yoga & Mobility (20 mins)", "Daily 10k Steps", "Pilates / Core Work (30 mins)",
+            # Health & Diet
+            "Hydration: Drink 1 Gallon of Water", "Meal Prep & Nutrition Logging", "Strict 8-Hour Sleep Block",
+            "Take Vitamins/Supplements", "Intermittent Fasting Window", "Cook Dinner at Home",
+            # Mindset & Learning
+            "Read 15 Pages of Non-Fiction", "10-Minute Mindfulness / Meditation", "Listen to Industry Podcast",
+            "Journaling / Brain Dump", "Learn a Language (15 mins)", "Practice an Instrument",
+            # Life Admin & Household
+            "Household Chores / Deep Clean", "Screen-Free Wind Down", "Family / Relationship Time",
+            "Water Plants / Gardening", "Review Personal Budget", "Creative Hobby Block"
         ])
+        
+        # The Custom Routine Engine
+        st.markdown("**➕ Add a Custom Routine**")
+        colA, colB = st.columns([3, 1])
+        with colA: custom_routine = st.text_input("Routine Name (e.g., 'Walk the Dog', 'Review F1 News')")
+        with colB: custom_routine_time = st.time_input("Time of day", value=time(12, 0))
         
         if st.form_submit_button("Generate My Dashboard", type="primary", use_container_width=True):
             user_data["wake_up"] = wake_time
             
-            # Auto-queue the selected goals
-            for goal in biz_goals:
-                # Assign default targets based on the goal type
-                target_num = 200 if "200+" in goal else 50 if "50" in goal else 10
-                user_data["goals"].append({"Goal": goal, "Current": 0, "Target": target_num})
+            # Combine pre-built and custom goals
+            all_goals = biz_goals.copy()
+            if custom_goal: all_goals.append(custom_goal)
             
-            # Auto-populate the calendar for the current week based on routines
+            # Extract numbers for goal targets
+            for goal in all_goals:
+                match = re.search(r'\d+', goal)
+                target_num = int(match.group()) if match else 10
+                clean_name = goal.split(":")[1].strip() if ":" in goal else goal
+                user_data["goals"].append({"Goal": clean_name, "Current": 0, "Target": target_num})
+            
+            # Auto-populate the calendar
             today = date.today()
             start_of_week = today - timedelta(days=today.weekday())
             
             for i in range(7):
                 day = start_of_week + timedelta(days=i)
-                
-                # Always add Wake Up
                 wake_dt = datetime.combine(day, wake_time)
+                
+                # Wake Up Block
                 user_data["events"].append({
                     "title": "🌅 Wake Up", "start": wake_dt.isoformat(), 
                     "end": (wake_dt + timedelta(minutes=15)).isoformat(), "backgroundColor": "#FFD700"
                 })
                 
-                # Add conditional routines
-                if "Fasted Cardio (Morning)" in routines:
-                    cardio_dt = wake_dt + timedelta(minutes=30)
+                # Dynamic Routing for a few key visual anchors
+                if "10-Minute Mindfulness / Meditation" in routines:
+                    med_dt = wake_dt + timedelta(minutes=15)
+                    user_data["events"].append({"title": "🧘 Mindfulness", "start": med_dt.isoformat(), "end": (med_dt + timedelta(minutes=10)).isoformat(), "backgroundColor": "#00CED1"})
+                if "Strength Training / Gym (45 mins)" in routines:
+                    lift_dt = datetime.combine(day, time(17, 0)) 
+                    user_data["events"].append({"title": "🏋️ Strength Training", "start": lift_dt.isoformat(), "end": (lift_dt + timedelta(minutes=45)).isoformat(), "backgroundColor": "#FF4B4B"})
+                if "Read 15 Pages of Non-Fiction" in routines:
+                    read_dt = datetime.combine(day, time(20, 0)) 
+                    user_data["events"].append({"title": "📚 Reading", "start": read_dt.isoformat(), "end": (read_dt + timedelta(minutes=30)).isoformat(), "backgroundColor": "#8A2BE2"})
+                if "Screen-Free Wind Down" in routines:
+                    wind_dt = datetime.combine(day, time(21, 30)) 
+                    user_data["events"].append({"title": "🌙 Wind Down", "start": wind_dt.isoformat(), "end": (wind_dt + timedelta(minutes=30)).isoformat(), "backgroundColor": "#A9A9A9"})
+                
+                # Inject Custom Routine
+                if custom_routine:
+                    custom_dt = datetime.combine(day, custom_routine_time)
                     user_data["events"].append({
-                        "title": "🏃 Fasted Cardio", "start": cardio_dt.isoformat(), 
-                        "end": (cardio_dt + timedelta(minutes=45)).isoformat(), "backgroundColor": "#00CC96"
+                        "title": f"✨ {custom_routine}", "start": custom_dt.isoformat(), 
+                        "end": (custom_dt + timedelta(minutes=30)).isoformat(), "backgroundColor": "#FF9F36"
                     })
-                if "Walk Bella" in routines:
-                    walk_dt = datetime.combine(day, time(17, 30)) # 5:30 PM default
-                    user_data["events"].append({
-                        "title": "🐕 Walk Bella", "start": walk_dt.isoformat(), 
-                        "end": (walk_dt + timedelta(minutes=30)).isoformat(), "backgroundColor": "#FF9F36"
-                    })
-                if "Heavy Lifting / Bodybuilding Split" in routines:
-                    lift_dt = datetime.combine(day, time(18, 0)) # 6:00 PM default
-                    user_data["events"].append({
-                        "title": "🏋️ Bodybuilding Split", "start": lift_dt.isoformat(), 
-                        "end": (lift_dt + timedelta(hours=1, minutes=30)).isoformat(), "backgroundColor": "#FF4B4B"
-                    })
-                    
+
             user_data["setup_complete"] = True
             st.balloons()
             st.rerun()
@@ -154,58 +183,4 @@ with col_left:
             new_t = st.text_input("Quick Add Task")
             if st.form_submit_button("Add to Inbox"):
                 if new_t:
-                    user_data["tasks"].append({"Task": new_t, "Done": False})
-                    st.rerun()
-        
-        if not user_data["tasks"]: st.caption("Inbox zero.")
-        for idx, t in enumerate(user_data["tasks"]):
-            if not t["Done"]:
-                st.markdown(f"**{t['Task']}**")
-                c1, c2 = st.columns(2)
-                with c1:
-                    if st.button("Complete", key=f"done_{idx}", use_container_width=True):
-                        user_data["tasks"][idx]["Done"] = True
-                        st.rerun()
-                with c2:
-                    with st.popover("📅 Schedule"):
-                        sched_date = st.date_input("Date", date.today(), key=f"d_{idx}")
-                        sched_time = st.time_input("Time", value=time(12, 0), step=300, key=f"t_{idx}")
-                        if st.button("Push to Calendar", key=f"push_{idx}", type="primary"):
-                            start_dt = datetime.combine(sched_date, sched_time)
-                            user_data["events"].append({
-                                "title": t['Task'], "start": start_dt.isoformat(), 
-                                "end": (start_dt + timedelta(minutes=30)).isoformat(), "backgroundColor": "#1E90FF"
-                            })
-                            user_data["tasks"][idx]["Done"] = True 
-                            st.rerun()
-                st.divider()
-
-    with st.container(border=True):
-        st.subheader("🎯 Active Goals")
-        with st.popover("➕ New Goal"):
-            g_name = st.text_input("Goal Name")
-            g_target = st.number_input("Target Number", min_value=1, value=10)
-            if st.button("Save Goal", type="primary"):
-                user_data["goals"].append({"Goal": g_name, "Current": 0, "Target": g_target})
-                st.rerun()
-                
-        for idx, g in enumerate(user_data["goals"]):
-            st.caption(f"{g['Goal']} ({g['Current']}/{g['Target']})")
-            st.progress(min(g["Current"] / g["Target"], 1.0))
-            if st.button("Log Progress (+1)", key=f"g_prog_{idx}"):
-                user_data["goals"][idx]["Current"] += 1
-                st.rerun()
-
-with col_right:
-    with st.container(border=True):
-        wake_str = user_data["wake_up"].strftime("%H:%M:%S")
-        calendar_options = {
-            "headerToolbar": {"left": "today prev,next", "center": "title", "right": "timeGridDay,timeGridWeek,dayGridMonth"},
-            "initialView": "timeGridWeek",
-            "slotDuration": "00:05:00",
-            "snapDuration": "00:05:00",
-            "scrollTime": wake_str, 
-            "height": "850px",
-            "nowIndicator": True,
-        }
-        calendar(events=user_data["events"], options=calendar_options)
+                    user_data["tasks"].append({"Task": new_t
