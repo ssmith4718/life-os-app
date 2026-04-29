@@ -171,4 +171,41 @@ with col_left:
                         sched_date = st.date_input("Date", date.today(), key=f"d_{idx}")
                         sched_time = st.time_input("Time", value=time(12, 0), step=300, key=f"t_{idx}")
                         if st.button("Push to Calendar", key=f"push_{idx}", type="primary"):
-                            start_dt = datetime.combine(sched
+                            start_dt = datetime.combine(sched_date, sched_time)
+                            user_data["events"].append({
+                                "title": t['Task'], "start": start_dt.isoformat(), 
+                                "end": (start_dt + timedelta(minutes=30)).isoformat(), "backgroundColor": "#1E90FF"
+                            })
+                            user_data["tasks"][idx]["Done"] = True 
+                            st.rerun()
+                st.divider()
+
+    with st.container(border=True):
+        st.subheader("🎯 Active Goals")
+        with st.popover("➕ New Goal"):
+            g_name = st.text_input("Goal Name")
+            g_target = st.number_input("Target Number", min_value=1, value=10)
+            if st.button("Save Goal", type="primary"):
+                user_data["goals"].append({"Goal": g_name, "Current": 0, "Target": g_target})
+                st.rerun()
+                
+        for idx, g in enumerate(user_data["goals"]):
+            st.caption(f"{g['Goal']} ({g['Current']}/{g['Target']})")
+            st.progress(min(g["Current"] / g["Target"], 1.0))
+            if st.button("Log Progress (+1)", key=f"g_prog_{idx}"):
+                user_data["goals"][idx]["Current"] += 1
+                st.rerun()
+
+with col_right:
+    with st.container(border=True):
+        wake_str = user_data["wake_up"].strftime("%H:%M:%S")
+        calendar_options = {
+            "headerToolbar": {"left": "today prev,next", "center": "title", "right": "timeGridDay,timeGridWeek,dayGridMonth"},
+            "initialView": "timeGridWeek",
+            "slotDuration": "00:05:00",
+            "snapDuration": "00:05:00",
+            "scrollTime": wake_str, 
+            "height": "850px",
+            "nowIndicator": True,
+        }
+        calendar(events=user_data["events"], options=calendar_options)
